@@ -48,8 +48,20 @@ function confirmSMSToken (req, res) {
   } else {
     // todos
     // check in datastore whether number corresponds to the correct token, in any other case, send error
+
     if (userToken === 'RED') {
-      res.send('Welcome to Matrix!')
+      const phoneNumberKey = datastore.key(['smsAuth', phoneNumber])
+      datastore.delete(phoneNumberKey)
+        .then(() => {
+          console.log(`${phoneNumberKey} deleted successfully.`)
+          res.send('Welcome to Matrix!')
+        })
+        .catch((err) => {
+          console.error('ERROR:', err)
+          res.status(500).send({
+            error: err
+          })
+        })
     } else {
       res.status(400).send('Your adventure ends here.')
     }
