@@ -1,5 +1,7 @@
 'use strict'
 
+const datastore = require('@google-cloud/datastore')()
+
 function getSMSToken (req, res) {
   let phoneNumber = req.query.phoneNumber
   if (phoneNumber === undefined) {
@@ -12,7 +14,29 @@ function getSMSToken (req, res) {
     // if callback fails, remove the entry
     // entry structure: phoneNumber: token
     // if new token is generated, older one is replaced
-    res.send('Message sent! Please input your token to continue.')
+
+    let token = 'RED'
+    const kind = 'smsAuth'
+    let phoneNumberKey = datastore.key([kind, phoneNumber])
+    let phoneNumberTokenPair = {
+      key: phoneNumberKey,
+      data: {
+        phoneNumber: phoneNumber,
+        token: token
+      }
+    }
+
+    datastore.save(phoneNumberTokenPair)
+      .then(() => {
+        console.log(`Saved ${phoneNumberTokenPair.key.name}: ${phoneNumberTokenPair.data.description}`)
+        res.send('Message sent! Please input your token to continue.')
+      })
+      .catch((err) => {
+        console.error('ERROR:', err)
+        res.status(500).send({
+          error: err
+        })
+      })
   }
 }
 
