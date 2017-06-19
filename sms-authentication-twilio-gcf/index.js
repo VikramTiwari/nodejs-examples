@@ -46,25 +46,36 @@ function confirmSMSToken (req, res) {
   if (userToken === undefined || phoneNumber === undefined) {
     res.status(400).send('Please user token as well as phone number are required.')
   } else {
-    // todos
-    // check in datastore whether number corresponds to the correct token, in any other case, send error
+    const transaction = datastore.transaction()
+    const phoneNumberKey = datastore.key(['smsAuth', phoneNumber])
 
-    if (userToken === 'RED') {
-      const phoneNumberKey = datastore.key(['smsAuth', phoneNumber])
-      datastore.delete(phoneNumberKey)
-        .then(() => {
-          console.log(`${phoneNumberKey} deleted successfully.`)
-          res.send('Welcome to Matrix!')
+    transaction.run()
+      .then(() => transaction.get(phoneNumberKey))
+      .then((results) => {
+        console.log(results)
+        if (results[0].token === userToken) {
+          datastore.delete(phoneNumberKey)
+            .then(() => {
+              console.log(`${phoneNumberKey} deleted successfully.`)
+              res.send('Welcome to Matrix!')
+            })
+            .catch((err) => {
+              console.error('ERROR:', err)
+              res.status(500).send({
+                error: err
+              })
+            })
+        } else {
+          res.status(400).send('Your adventure ends here.')
+        }
+      })
+      .catch((err) => {
+        transaction.rollback()
+        console.error('ERROR:', err)
+        res.status(500).send({
+          error: err
         })
-        .catch((err) => {
-          console.error('ERROR:', err)
-          res.status(500).send({
-            error: err
-          })
-        })
-    } else {
-      res.status(400).send('Your adventure ends here.')
-    }
+      })
   }
 }
 
