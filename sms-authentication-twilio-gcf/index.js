@@ -15,7 +15,7 @@ function getSMSToken (req, res) {
     // entry structure: phoneNumber: token
     // if new token is generated, older one is replaced
 
-    let token = 'RED'
+    let token = ('' + Math.random()).substring(2, 8)
     const kind = 'smsAuth'
     let phoneNumberKey = datastore.key([kind, phoneNumber])
     let phoneNumberTokenPair = {
@@ -28,11 +28,11 @@ function getSMSToken (req, res) {
 
     datastore.save(phoneNumberTokenPair)
       .then(() => {
-        console.log(`Saved ${phoneNumberTokenPair.key.name}: ${phoneNumberTokenPair.data.description}`)
+        // console.log(`Saved ${phoneNumberTokenPair.key.name}: ${phoneNumberTokenPair.data.description}`)
         res.send('Message sent! Please input your token to continue.')
       })
       .catch((err) => {
-        console.error('ERROR:', err)
+        // console.error('ERROR:', err)
         res.status(500).send({
           error: err
         })
@@ -52,26 +52,29 @@ function confirmSMSToken (req, res) {
     transaction.run()
       .then(() => transaction.get(phoneNumberKey))
       .then((results) => {
-        console.log(results)
-        if (results[0].token === userToken) {
-          datastore.delete(phoneNumberKey)
-            .then(() => {
-              console.log(`${phoneNumberKey} deleted successfully.`)
-              res.send('Welcome to Matrix!')
-            })
-            .catch((err) => {
-              console.error('ERROR:', err)
-              res.status(500).send({
-                error: err
+        if (results !== undefined && results.length > 0) {
+          if (results[0].token === userToken) {
+            datastore.delete(phoneNumberKey)
+              .then(() => {
+                // console.log(`${phoneNumberKey} deleted successfully.`)
+                res.send('Authentication Successful')
               })
-            })
+              .catch((err) => {
+                // console.error('ERROR:', err)
+                res.status(500).send({
+                  error: err
+                })
+              })
+          } else {
+            res.status(400).send('Seems you have wrong token.')
+          }
         } else {
-          res.status(400).send('Your adventure ends here.')
+          res.status(400).send('No token requested for this phone number.')
         }
       })
       .catch((err) => {
         transaction.rollback()
-        console.error('ERROR:', err)
+        // console.error('ERROR:', err)
         res.status(500).send({
           error: err
         })
