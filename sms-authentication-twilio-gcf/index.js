@@ -1,38 +1,54 @@
 'use strict'
 
 const datastore = require('@google-cloud/datastore')()
+const Twilio = require('twilio')
+
+const accountSid = 'ACXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX' // Your Account SID from www.twilio.com/console
+const authToken = 'your_auth_token' // Your Auth Token from www.twilio.com/console
+const twilioPhoneNumber = '+12345678901' // Your phone number that is allocated to you by twilio
+var twilioClient = new Twilio(accountSid, authToken)
 
 function getSMSToken (req, res) {
   let phoneNumber = req.query.phoneNumber
   if (phoneNumber === undefined) {
     res.status(400).send('A phone number is required.')
   } else {
-    // todos
-    // generate a 6 digit random number
-    // save the number in datastore
-    // use twilio library to send that message to the provided phone number and wait for the callback
-    // if callback fails, remove the entry
-    // entry structure: phoneNumber: token
-    // if new token is generated, older one is replaced
-
     let token = ('' + Math.random()).substring(2, 8)
-    const kind = 'smsAuth'
-    let phoneNumberKey = datastore.key([kind, phoneNumber])
-    let phoneNumberTokenPair = {
-      key: phoneNumberKey,
-      data: {
-        phoneNumber: phoneNumber,
-        token: token
-      }
-    }
+    twilioClient.messages.create({
+      body: `Your token for GCF is: ${token}`,
+      to: `+1${phoneNumber}`, // Text this number
+      from: twilioPhoneNumber // From a valid Twilio number
+    })
+      .then((message) => {
+        if (message.sid) {
+          // message sent
+          let phoneNumberKey = datastore.key(['smsAuth', phoneNumber])
+          let phoneNumberTokenPair = {
+            key: phoneNumberKey,
+            data: {
+              phoneNumber: phoneNumber,
+              token: token
+            }
+          }
 
-    datastore.save(phoneNumberTokenPair)
-      .then(() => {
-        // console.log(`Saved ${phoneNumberTokenPair.key.name}: ${phoneNumberTokenPair.data.description}`)
-        res.send('Message sent! Please input your token to continue.')
+          datastore.save(phoneNumberTokenPair)
+            .then(() => {
+              // console.log(`Saved ${phoneNumberTokenPair.key.name}: ${phoneNumberTokenPair.data.description}`)
+              res.send('Message sent! Please input your token to continue.')
+            })
+            .catch((err) => {
+              // console.error('ERROR:', err)
+              res.status(500).send({
+                error: err
+              })
+            })
+        } else {
+          res.status(500).send({
+            error: 'Unable to send message at the moment.'
+          })
+        }
       })
       .catch((err) => {
-        // console.error('ERROR:', err)
         res.status(500).send({
           error: err
         })
